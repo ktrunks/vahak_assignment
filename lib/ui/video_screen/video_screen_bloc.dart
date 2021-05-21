@@ -17,6 +17,10 @@ class VideoScreenBloc extends Bloc<VideoScreenEvent, VideoScreenBlocState> {
 
   final Map<String, dynamic> data;
 
+  final _formKey = GlobalKey<FormState>();
+
+  TextEditingController noteController = TextEditingController();
+
   /// scaffold which is used for toast or context
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -90,29 +94,167 @@ class VideoScreenBloc extends Bloc<VideoScreenEvent, VideoScreenBlocState> {
 
   void onClickOfAddNote(
       ApplicationBloc applicationBloc, VideoNotesBloc videoNotesBloc) {
-    if (_controller != null && _controller.value.isPlaying) {
-      Map<String, dynamic> notes = {};
-      String position;
-      if (data['notes'] != null) {
-        notes = data['notes'];
-        position = _controller.value.position.inSeconds.toString();
-        notes['${position.toString()}'] = 'test notes';
-      } else {
-        position = _controller.value.position.inSeconds.toString();
-        notes['${position.toString()}'] = 'test notes';
+    videoPlayerController.pause();
+
+    // show the dialog
+    showDialog(
+      context: scaffoldKey.currentContext,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Add Note"),
+          content: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TextFormField(
+                  keyboardType: TextInputType.visiblePassword,
+                  textInputAction: TextInputAction.next,
+                  controller: noteController,
+                  maxLines: 5,
+                  enableSuggestions: false,
+                  validator: (data) {
+                    if (data == null || data.isEmpty) {
+                      return 'Please enter note';
+                    }
+                    return null;
+                  },
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey)),
+                    errorBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.red)),
+                    enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black26)),
+                    focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Colors.orange)),
+                    hintText: 'Note',
+                    contentPadding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+                  ),
+                  onSaved: (email) {},
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            FlatButton(
+              child: Text("Add"),
+              onPressed: () {
+                addNote(videoNotesBloc, context);
+              },
+            ),
+            FlatButton(
+              child: Text("Cancel"),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      },
+    ).then((value) {
+      noteController.clear();
+      if (!_controller.value.isPlaying) {
+        _controller.play();
       }
-      data['notes'] = notes;
-      _controller
-          .seekTo(Duration(seconds: _controller.value.position.inSeconds + 3));
-      _controller.play();
-      videoNotesBloc.add(NoteEvent(notes));
-    }
+    });
+    /*showModalBottomSheet(
+        context: scaffoldKey.currentContext,
+        builder: (context) {
+          return Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(left: 20, right: 20, top: 20),
+                  child: TextFormField(
+                    keyboardType: TextInputType.visiblePassword,
+                    textInputAction: TextInputAction.next,
+                    controller: noteController,
+                    maxLines: 5,
+                    enableSuggestions: false,
+                    validator: (data) {
+                      if (data == null || data.isEmpty) {
+                        return 'Please enter note';
+                      }
+                      return null;
+                    },
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey)),
+                      errorBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.red)),
+                      enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.black26)),
+                      focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.orange)),
+                      hintText: 'Note',
+                      contentPadding: const EdgeInsets.fromLTRB(10, 5, 10, 5),
+                    ),
+                    onSaved: (email) {},
+                  ),
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (_formKey.currentState.validate()) {
+                      addNote(videoNotesBloc, context);
+                    }
+                  },
+                  style: TextButton.styleFrom(
+                    primary: Colors.white,
+                    backgroundColor: Colors.blue,
+                    onSurface: Colors.grey,
+                  ),
+                  child: Text(
+                    'Add',
+                    style: TextStyle(fontSize: 14, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(
+                  height: 5,
+                ),
+              ],
+            ),
+          );
+        }).then((value) {
+      noteController.clear();
+      if (!_controller.value.isPlaying) {
+        _controller.play();
+      }
+    });*/
+  }
+
+  void addNote(VideoNotesBloc videoNotesBloc, BuildContext context) {
+   if(_formKey.currentState.validate()){
+     Map<String, dynamic> notes = {};
+     String position;
+     if (data['notes'] != null) {
+       notes = data['notes'];
+       position = (_controller.value.position.inSeconds - 1).toString();
+       notes['${position.toString()}'] = noteController.text.trim();
+     } else {
+       position = (_controller.value.position.inSeconds - 1).toString();
+       notes['${position.toString()}'] = noteController.text.trim();
+     }
+     data['notes'] = notes;
+     noteController.clear();
+     videoNotesBloc.add(NoteEvent(notes));
+     Navigator.pop(context);
+   }
   }
 
   void onDismissNoteDisplay(VideoDisplayNotesBloc videoDisplayNotesBloc) {
     videoDisplayNotesBloc.add(NoteDisplayNoNoteEvent());
     _controller
-        .seekTo(Duration(seconds: _controller.value.position.inSeconds + 3));
+        .seekTo(Duration(seconds: _controller.value.position.inSeconds + 4));
     _controller.play();
   }
 }
